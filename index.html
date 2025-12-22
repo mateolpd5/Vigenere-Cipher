@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="[COLOR_PRINCIPAL]">
+
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+
+  <title>Cifrado Vigenère (sin Ñ) — Versión mejorada</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#f8fafc; color:#0f172a; margin:24px; position:relative; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    h1 { color:#0b5ed7; margin:0; font-size:1.6rem; }
+    label { display:block; margin-top:10px; font-weight:600; }
+    textarea, input { width:100%; padding:8px; margin-top:6px; font-size:1rem; box-sizing:border-box; }
+    textarea { white-space: pre-wrap; overflow-wrap: break-word; resize: vertical; min-height: 80px; max-width:100%; }
+    .row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center; }
+    .preserve-group { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+    .preserve-group .group-title { font-weight:700; color:#475569; margin-bottom:2px; white-space:normal; }
+    .preserve-group label { font-weight:500; display:flex; align-items:center; gap:8px; cursor:pointer; white-space:nowrap; }
+    button { padding:8px 12px; border-radius:8px; border:0; background:#0b5ed7; color:#fff; cursor:pointer; }
+    button.secondary { background:#475569; }
+    .output { background:#fff; padding:12px; border-radius:8px; margin-top:12px; border:1px solid #e2e8f0; white-space:pre-wrap; font-family:monospace; min-height:80px; word-break:break-word; }
+    .controls { margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; }
+    .small { font-size:.9rem; color:#546174; margin-top:8px; }
+    .tabs { display:flex; gap:0; margin-bottom:16px; border-bottom:2px solid #e2e8f0; }
+    .tab-btn { padding:10px 22px; background:none; border:none; border-bottom:3px solid transparent; font-size:1.07rem; font-weight:600; cursor:pointer; color:#475569; transition:border-bottom .2s, color .2s; }
+    .tab-btn.active { border-bottom:3px solid #0b5ed7; color:#0b5ed7; background:#f1f5fb; }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+    .manual-tabs { display:flex; gap:8px; margin-top:8px; margin-bottom:12px; }
+    .manual-tab-btn { padding:8px 14px; border-radius:8px; border:1px solid transparent; background:#fff; cursor:pointer; color:#475569; font-weight:600; }
+    .manual-tab-btn.active { background:#0b5ed7; color:#fff; border-color:#0b5ed7; }
+    .manual-content { display:none; }
+    .manual-content.active { display:block; }
+    .manual-list { margin:18px 0 0 0; padding-left:18px; font-size:1.07rem; color:#374151; }
+    .manual-table { border-collapse:collapse; margin-top:14px; width:100%; max-width:720px; }
+    .manual-table th,.manual-table td { border:1px solid #e2e8f0; padding:6px 10px; text-align:center; font-size:1.0rem; background:#fff; }
+    .manual-table th { background:#f1f5fb; color:#0b5ed7; font-weight:700; }
+    .manual-note { color:#475569; font-size:.98rem; margin-top:14px; background:#f1f5fb; padding:10px 12px; border-radius:7px; border:1px solid #e2e8f0; max-width:760px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace; background:#fff; padding:2px 6px; border-radius:4px; border:1px solid #e6eefc; }
+
+    .toast-container { position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:9999; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none; }
+    .toast { pointer-events:auto; min-width:160px; max-width:92vw; padding:10px 14px; border-radius:10px; color:#fff; box-shadow:0 6px 18px rgba(11,78,215,0.12); font-weight:600; opacity:0; transform:translateY(8px); transition:opacity .22s, transform .22s; font-size:.98rem; }
+    .toast.show { opacity:1; transform:translateY(0); }
+    .toast.success { background:linear-gradient(90deg,#16a34a,#059669); }
+    .toast.error { background:linear-gradient(90deg,#dc2626,#ef4444); }
+    .toast.info { background:linear-gradient(90deg,#0b5ed7,#2563eb); }
+
+    .settings-btn { background:transparent; border:0; font-size:1.2rem; cursor:pointer; padding:8px; border-radius:8px; color:#475569; }
+    .settings-btn:hover { background:#f1f5fb; color:#0b5ed7; }
+    .settings-panel { position:fixed; top:64px; right:18px; width:300px; max-width:92vw; background:#fff; border:1px solid #e2e8f0; padding:12px; border-radius:10px; box-shadow:0 12px 30px rgba(2,6,23,0.08); z-index:9998; display:none; }
+    .settings-panel.active { display:block; }
+    .settings-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; }
+    .settings-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 data-i18n="title">🔐 Cifrado Vigenère — Versión mejorada</h1>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button id="settingsBtn" class="settings-btn" aria-haspopup="true" aria-expanded="false" title="Configuración">⚙️</button>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Main tabs">
+    <button class="tab-btn active" data-tab="auto" data-i18n="tab_auto">Cifrado automático</button>
+    <button class="tab-btn" data-tab="manual" data-i18n="tab_manual">Cifrado manual</button>
+  </div>
+
+  <div class="settings-panel" id="settingsPanel" role="dialog" aria-modal="false" aria-labelledby="settingsTitle">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <strong id="settingsTitle" data-i18n="settings_title">Configuración</strong>
+      <button id="closeSettings" class="settings-btn" aria-label="Cerrar">✖</button>
+    </div>
+
+    <div class="settings-row" style="margin-top:12px;">
+      <label for="languageSelect" data-i18n="settings_language_label">Idioma</label>
+      <select id="languageSelect" aria-label="Language">
+        <option value="es">Español</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+
+    <div class="settings-actions">
+      <button id="applySettings" class="secondary" data-i18n="settings_apply">Aplicar</button>
+      <button id="cancelSettings" class="secondary" data-i18n="settings_cancel">Cancelar</button>
+    </div>
+  </div>
+
+  <div class="tab-content active" id="tab-auto">
+    <p class="small" data-i18n="desc_small">Reemplaza tildes por vocales sin tilde y convierte Ñ → N. Por defecto conserva espacios y signos en la salida (la clave solo se aplica a letras A–Z).</p>
+
+    <label for="text" data-i18n="label_text">Texto:</label>
+    <textarea id="text" rows="4" wrap="soft" placeholder="Escribe tu mensaje aquí..." data-i18n-placeholder="placeholder_text">hola mundo!</textarea>
+
+    <label for="key" data-i18n="label_key">Clave (solo letras A–Z; se normaliza automáticamente):</label>
+    <input id="key" type="text" placeholder="Ej: CLAVE" value="CLAVE" data-i18n-placeholder="placeholder_key" />
+
+    <div class="row">
+      <div class="preserve-group" role="group" aria-label="Conservar en la salida">
+        <span class="group-title" data-i18n="preserve_group_label">Conservar (en la salida):</span>
+        <label><input id="preserve" type="checkbox" checked /> <span data-i18n="label_preserve_short">espacios y signos</span></label>
+        <label><input id="preserveCase" type="checkbox" checked /> <span data-i18n="label_preserveCase_short">Mayúsculas/minúsculas</span></label>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="encryptBtn" data-i18n="btn_encrypt">Cifrar</button>
+      <button id="decryptBtn" class="secondary" data-i18n="btn_decrypt">Descifrar</button>
+      <button id="copyBtn" class="secondary" data-i18n="btn_copy">Copiar resultado</button>
+    </div>
+
+    <label style="margin-top:14px" data-i18n="label_normalized">Texto normalizado (para referencia):</label>
+    <div id="normalized" class="output"></div>
+
+    <label data-i18n="label_result">Resultado:</label>
+    <div id="result" class="output" aria-live="polite"></div>
+  </div>
+
+  <div class="tab-content" id="tab-manual">
+    <div class="manual-tabs" role="tablist" aria-label="Cifrado manual opciones">
+      <button class="manual-tab-btn active" data-manual="cifrado" data-i18n="manual_tab_encrypt">Cifrado</button>
+      <button class="manual-tab-btn" data-manual="descifrado" data-i18n="manual_tab_decrypt">Descifrado</button>
+    </div>
+
+    <div class="manual-content active" id="manual-cifrado">
+      <h2 data-i18n="manual_encrypt_title" style="color:#0b5ed7;">🔑 ¿Cómo cifrar con Vigenère usando lápiz y papel?</h2>
+      <ol class="manual-list">
+        <li data-i18n="manual_encrypt_step1"><strong>Prepara tu mensaje:</strong> Escribe el texto que quieres cifrar. Elimina tildes y cambia la Ñ por N.</li>
+        <li data-i18n="manual_encrypt_step2"><strong>Prepara la clave:</strong> Escribe la palabra clave (solo letras de la A a la Z, sin tildes ni Ñ).</li>
+        <li data-i18n="manual_encrypt_step3"><strong>Repite la clave:</strong> Escribe la clave debajo de tu mensaje, repitiéndola tantas veces como sea necesario para que cada letra del mensaje tenga una letra de la clave debajo.</li>
+        <li data-i18n="manual_encrypt_step4"><strong>Convierte letras a números:</strong> Asigna a cada letra un número (A = 0, B = 1, ..., Z = 25).</li>
+        <li data-i18n="manual_encrypt_step5"><strong>Suma los números:</strong> Suma el número de la letra del mensaje y el número de la clave. Si el resultado es mayor que 25, réstale 26.</li>
+        <li data-i18n="manual_encrypt_step6"><strong>Convierte el resultado a letra:</strong> Usa la tabla (A = 0, B = 1, ..., Z = 25) para obtener la letra cifrada.</li>
+        <li data-i18n="manual_encrypt_step7"><strong>Escribe el mensaje cifrado:</strong> Haz esto para cada letra del mensaje.</li>
+      </ol>
+
+      <table class="manual-table" aria-label="Tabla letra número">
+        <thead><tr><th data-i18n="col_letter">Letra</th><th data-i18n="col_number">Número</th><th data-i18n="col_letter">Letra</th><th data-i18n="col_number">Número</th></tr></thead>
+        <tbody>
+          <tr><td>A</td><td>0</td><td>N</td><td>13</td></tr>
+          <tr><td>B</td><td>1</td><td>O</td><td>14</td></tr>
+          <tr><td>C</td><td>2</td><td>P</td><td>15</td></tr>
+          <tr><td>D</td><td>3</td><td>Q</td><td>16</td></tr>
+          <tr><td>E</td><td>4</td><td>R</td><td>17</td></tr>
+          <tr><td>F</td><td>5</td><td>S</td><td>18</td></tr>
+          <tr><td>G</td><td>6</td><td>T</td><td>19</td></tr>
+          <tr><td>H</td><td>7</td><td>U</td><td>20</td></tr>
+          <tr><td>I</td><td>8</td><td>V</td><td>21</td></tr>
+          <tr><td>J</td><td>9</td><td>W</td><td>22</td></tr>
+          <tr><td>K</td><td>10</td><td>X</td><td>23</td></tr>
+          <tr><td>L</td><td>11</td><td>Y</td><td>24</td></tr>
+          <tr><td>M</td><td>12</td><td>Z</td><td>25</td></tr>
+        </tbody>
+      </table>
+
+      <div class="manual-note" id="manualEncryptExample">
+        <strong data-i18n="example_title">Ejemplo:</strong><br>
+        <span data-i18n="example_message">Mensaje: <code>HOLA</code></span><br>
+        <span data-i18n="example_key">Clave: <code>CLAVE</code></span><br><br>
+        <span data-i18n="example_steps">1. Repite la clave: <code>CLAV</code> (para las 4 letras de HOLA)<br>&nbsp;&nbsp;2. Convierte a números:<br>&nbsp;&nbsp;&nbsp;&nbsp;Mensaje: H(7), O(14), L(11), A(0)<br>&nbsp;&nbsp;&nbsp;&nbsp;Clave: C(2), L(11), A(0), V(21)<br>&nbsp;&nbsp;3. Suma:<br>&nbsp;&nbsp;&nbsp;&nbsp;H + C: 7 + 2 = 9 → J<br>&nbsp;&nbsp;&nbsp;&nbsp;O + L: 14 + 11 = 25 → Z<br>&nbsp;&nbsp;&nbsp;&nbsp;L + A: 11 + 0 = 11 → L<br>&nbsp;&nbsp;&nbsp;&nbsp;A + V: 0 + 21 = 21 → V<br>&nbsp;&nbsp;4. Resultado cifrado: <code>JZLV</code></span>
+      </div>
+    </div>
+
+    <div class="manual-content" id="manual-descifrado">
+      <h2 data-i18n="manual_decrypt_title" style="color:#0b5ed7;">🔓 ¿Cómo descifrar manualmente (lápiz y papel)?</h2>
+      <ol class="manual-list">
+        <li data-i18n="manual_decrypt_step1"><strong>Prepara el texto cifrado:</strong> Escribe el texto cifrado que quieres descifrar. Si contiene otros signos o espacios, déjalos como están (según convenga).</li>
+        <li data-i18n="manual_decrypt_step2"><strong>Prepara la clave:</strong> Escribe la misma palabra clave que usó el emisor (A–Z, sin tildes ni ñ) y repítela debajo del texto cifrado hasta cubrirlo.</li>
+        <li data-i18n="manual_decrypt_step3"><strong>Convierte letras a números:</strong> Usa la misma asignación (A = 0, B = 1, ..., Z = 25) para el texto cifrado y la clave.</li>
+        <li data-i18n="manual_decrypt_step4"><strong>Resta los números:</strong> Para cada letra toma (número del cifrado) − (número de la clave). Si el resultado es negativo, súmale 26 para obtener un valor entre 0 y 25.</li>
+        <li data-i18n="manual_decrypt_step5"><strong>Convierte el resultado a letra:</strong> Usa la tabla (A = 0, ..., Z = 25) para obtener la letra original.</li>
+        <li data-i18n="manual_decrypt_step6"><strong>Escribe el texto descifrado:</strong> Repite para todas las letras.</li>
+      </ol>
+
+      <table class="manual-table" aria-label="Tabla letra número descifrado">
+        <thead><tr><th data-i18n="col_letter">Letra</th><th data-i18n="col_number">Número</th><th data-i18n="col_letter">Letra</th><th data-i18n="col_number">Número</th></tr></thead>
+        <tbody>
+          <tr><td>A</td><td>0</td><td>N</td><td>13</td></tr>
+          <tr><td>B</td><td>1</td><td>O</td><td>14</td></tr>
+          <tr><td>C</td><td>2</td><td>P</td><td>15</td></tr>
+          <tr><td>D</td><td>3</td><td>Q</td><td>16</td></tr>
+          <tr><td>E</td><td>4</td><td>R</td><td>17</td></tr>
+          <tr><td>F</td><td>5</td><td>S</td><td>18</td></tr>
+          <tr><td>G</td><td>6</td><td>T</td><td>19</td></tr>
+          <tr><td>H</td><td>7</td><td>U</td><td>20</td></tr>
+          <tr><td>I</td><td>8</td><td>V</td><td>21</td></tr>
+          <tr><td>J</td><td>9</td><td>W</td><td>22</td></tr>
+          <tr><td>K</td><td>10</td><td>X</td><td>23</td></tr>
+          <tr><td>L</td><td>11</td><td>Y</td><td>24</td></tr>
+          <tr><td>M</td><td>12</td><td>Z</td><td>25</td></tr>
+        </tbody>
+      </table>
+
+      <div class="manual-note">
+        <strong data-i18n="example_decrypt_title">Ejemplo de descifrado:</strong><br>
+        <span data-i18n="example_decrypt_cipher">Texto cifrado: <code>JZLV</code></span><br>
+        <span data-i18n="example_decrypt_key">Clave: <code>CLAV</code></span><br><br>
+        <span data-i18n="example_decrypt_steps">1. Convierte a números:<br>&nbsp;&nbsp;Cifrado: J(9), Z(25), L(11), V(21)<br>&nbsp;&nbsp;Clave: C(2), L(11), A(0), V(21)<br>2. Resta (cifrado − clave):<br>&nbsp;&nbsp;J − C: 9 − 2 = 7 → H<br>&nbsp;&nbsp;Z − L: 25 − 11 = 14 → O<br>&nbsp;&nbsp;L − A: 11 − 0 = 11 → L<br>&nbsp;&nbsp;V − V: 21 − 21 = 0 → A<br>3. Resultado descifrado: <code>HOLA</code></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+  // Ensure initialization runs after DOM is ready
+  document.addEventListener('DOMContentLoaded', () => {
+    // --- Translations (English only; Spanish defaults are in DOM) ---
+    const translations = {
+      en: {
+        title: "🔐 Vigenère Cipher — Improved version",
+        tab_auto: "Automatic cipher",
+        tab_manual: "Manual cipher",
+        settings_title: "Settings",
+        settings_language_label: "Language",
+        settings_apply: "Apply",
+        settings_cancel: "Cancel",
+        desc_small: "Replaces accents with base vowels and maps Ñ → N. By default preserves spaces and punctuation (key applies only to letters A–Z).",
+        label_text: "Text:",
+        placeholder_text: "Write your message here...",
+        label_key: "Key (letters A–Z only; normalized automatically):",
+        placeholder_key: "e.g. KEY",
+        preserve_group_label: "Preserve (in output):",
+        label_preserve_short: "spaces and punctuation",
+        label_preserveCase_short: "Uppercase/lowercase",
+        btn_encrypt: "Encrypt",
+        btn_decrypt: "Decrypt",
+        btn_copy: "Copy result",
+        label_normalized: "Normalized text (for reference):",
+        label_result: "Result:",
+        manual_tab_encrypt: "Encrypt",
+        manual_tab_decrypt: "Decrypt",
+        manual_encrypt_title: "🔑 How to encrypt with Vigenère using pen & paper?",
+        manual_encrypt_step1: "<strong>Prepare your message:</strong> Write the text you want to encrypt. Remove accents and change Ñ to N.",
+        manual_encrypt_step2: "<strong>Prepare the key:</strong> Write the keyword (letters A to Z only, no accents or Ñ).",
+        manual_encrypt_step3: "<strong>Repeat the key:</strong> Write the key under your message, repeating it so each message letter has a key letter below.",
+        manual_encrypt_step4: "<strong>Convert letters to numbers:</strong> Assign A = 0, B = 1, ..., Z = 25.",
+        manual_encrypt_step5: "<strong>Add numbers:</strong> Add the message number and the key number. If >25, subtract 26.",
+        manual_encrypt_step6: "<strong>Convert back to letters:</strong> Use the table to get the cipher letter.",
+        manual_encrypt_step7: "<strong>Write the ciphertext:</strong> Do this for every letter.",
+        col_letter: "Letter",
+        col_number: "Number",
+        example_title: "Example:",
+        example_message: "Message: <code>HELLO</code>",
+        example_key: "Key: <code>KEY</code>",
+        example_steps: "1. Repeat key: <code>KEYKE</code> (for 5 letters of HELLO)<br>2. Convert to numbers:<br>&nbsp;&nbsp;Message: H(7), E(4), L(11), L(11), O(14)<br>&nbsp;&nbsp;Key: K(10), E(4), Y(24), K(10), E(4)<br>3. Add:<br>&nbsp;&nbsp;H + K: 7 + 10 = 17 → R<br>&nbsp;&nbsp;E + E: 4 + 4 = 8 → I<br>&nbsp;&nbsp;L + Y: 11 + 24 = 35 → 9 → J<br>&nbsp;&nbsp;L + K: 11 + 10 = 21 → V<br>&nbsp;&nbsp;O + E: 14 + 4 = 18 → S<br>4. Ciphertext: <code>RIJVS</code>",
+        manual_decrypt_title: "🔓 How to decrypt manually (pen & paper)?",
+        manual_decrypt_step1: "<strong>Prepare the ciphertext:</strong> Write the encrypted text to decrypt. Keep spaces/punctuation as desired.",
+        manual_decrypt_step2: "<strong>Prepare the key:</strong> Write the same keyword used by sender and repeat it under the ciphertext.",
+        manual_decrypt_step3: "<strong>Convert to numbers:</strong> A = 0, ..., Z = 25 for ciphertext and key.",
+        manual_decrypt_step4: "<strong>Subtract numbers:</strong> (cipher number) − (key number). If negative, add 26.",
+        manual_decrypt_step5: "<strong>Convert back to letters</strong> to get the plaintext.",
+        manual_decrypt_step6: "<strong>Write the plaintext:</strong> Repeat for every letter.",
+        example_decrypt_title: "Decrypt example:",
+        example_decrypt_cipher: "Ciphertext: <code>RIJVS</code>",
+        example_decrypt_key: "Key: <code>KEY</code>",
+        example_decrypt_steps: "1. Convert to numbers:<br>&nbsp;&nbsp;Cipher: R(17), I(8), J(9), V(21), S(18)<br>&nbsp;&nbsp;Key: K(10), E(4), Y(24), K(10), E(4)<br>2. Subtract (cipher − key):<br>&nbsp;&nbsp;R − K: 17 − 10 = 7 → H<br>&nbsp;&nbsp;I − E: 8 − 4 = 4 → E<br>&nbsp;&nbsp;J − Y: 9 − 24 = -15 → +26 = 11 → L<br>&nbsp;&nbsp;V − K: 21 − 10 = 11 → L<br>&nbsp;&nbsp;S − E: 18 − 4 = 14 → O<br>Result: <code>HELLO</code>",
+        toast_no_result: "No result to copy.",
+        toast_copied: "Copied to clipboard.",
+        toast_copy_failed: "Couldn't copy automatically. Please select and copy from the result box.",
+        toast_encrypted: "Text encrypted.",
+        toast_decrypted: "Text decrypted.",
+        err_key_empty: "Empty key.",
+        err_key_invalid: "Key must contain at least one letter A–Z."
+      }
+    };
+
+    // Utility & cipher
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    function normalizeForKeyAndLetters(text) { return text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/Ñ/gi,'N').toUpperCase(); }
+    function isLetter(ch) { return /^[A-Z]$/.test(ch); }
+    function processVigenere(text, key, mode, options) {
+      if (!key || key.trim().length === 0) return { ok:false, messageKey:'err_key_empty' };
+      let normKey = normalizeForKeyAndLetters(key).replace(/[^A-Z]/g,'');
+      if (normKey.length === 0) return { ok:false, messageKey:'err_key_invalid' };
+      let result = '', keyPos = 0;
+      for (let i=0;i<text.length;i++){
+        let ch=text[i];
+        let normCh=normalizeForKeyAndLetters(ch);
+        if (!isLetter(normCh)) { if (options.preserveNonLetters) { result += ch; continue; } else { continue; } }
+        let tIdx = alphabet.indexOf(normCh);
+        let kIdx = alphabet.indexOf(normKey[keyPos % normKey.length]);
+        let resIdx = mode === 'encrypt' ? (tIdx + kIdx) % 26 : (tIdx - kIdx + 26) % 26;
+        let outCh = alphabet[resIdx];
+        if (options.preserveCase && ch === ch.toLowerCase()) outCh = outCh.toLowerCase();
+        result += outCh;
+        keyPos++;
+      }
+      return { ok:true, result:result };
+    }
+
+    // Robust showToast: ensures single toast, creates container if missing.
+    function showToast(message, type = 'info', duration = 3200) {
+      try {
+        // Ensure container exists
+        let container = document.getElementById('toastContainer');
+        if (!container) {
+          container = document.createElement('div');
+          container.id = 'toastContainer';
+          container.className = 'toast-container';
+          container.setAttribute('aria-live', 'polite');
+          container.setAttribute('aria-atomic', 'true');
+          document.body.appendChild(container);
+        }
+
+        // Remove existing toast immediately
+        if (window.__currentToastEl) {
+          try {
+            window.__currentToastEl.classList.remove('show');
+            if (window.__currentToastEl.parentNode === container) container.removeChild(window.__currentToastEl);
+          } catch (e) {}
+          if (window.__currentToastTimer) {
+            clearTimeout(window.__currentToastTimer);
+            window.__currentToastTimer = null;
+          }
+          window.__currentToastEl = null;
+        }
+
+        // Create new toast
+        const toast = document.createElement('div');
+        toast.className = 'toast ' + (type || 'info');
+        toast.textContent = message;
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+
+        container.appendChild(toast);
+        // force reflow
+        // eslint-disable-next-line no-unused-expressions
+        toast.offsetHeight;
+        toast.classList.add('show');
+
+        window.__currentToastEl = toast;
+
+        // Auto remove
+        window.__currentToastTimer = setTimeout(() => {
+          try {
+            toast.classList.remove('show');
+            setTimeout(() => {
+              try { if (toast.parentNode === container) container.removeChild(toast); } catch (e) {}
+              if (window.__currentToastEl === toast) window.__currentToastEl = null;
+            }, 260);
+          } catch (e) {}
+          window.__currentToastTimer = null;
+        }, duration);
+      } catch (err) {
+        try { console.error('showToast error:', err); } catch (e) {}
+        try { alert(message); } catch (e) {}
+      }
+    }
+
+    // Grab elements
+    const txtEl = document.getElementById('text');
+    const keyEl = document.getElementById('key');
+    const preserveChk = document.getElementById('preserve');
+    const preserveCaseChk = document.getElementById('preserveCase');
+    const resultEl = document.getElementById('result');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const closeSettings = document.getElementById('closeSettings');
+    const applySettings = document.getElementById('applySettings');
+    const cancelSettings = document.getElementById('cancelSettings');
+    const languageSelect = document.getElementById('languageSelect');
+
+    // Spanish defaults + samples
+    const spanishDefaults = {}; document.querySelectorAll('[data-i18n]').forEach(el => spanishDefaults[el.getAttribute('data-i18n')] = el.innerHTML);
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => spanishDefaults['ph_'+el.getAttribute('data-i18n-placeholder')] = el.getAttribute('placeholder') || '');
+    const spanishSampleText = txtEl.value || 'hola mundo!';
+    const spanishSampleKey = keyEl.value || 'CLAVE';
+    const englishSampleText = 'Hello world!';
+    const englishSampleKey = 'KEY';
+    let textEdited=false, keyEdited=false;
+    txtEl.addEventListener('input', ()=> textEdited=true);
+    keyEl.addEventListener('input', ()=> keyEdited=true);
+
+    function restoreSpanishDefaultsUI() {
+      document.querySelectorAll('[data-i18n]').forEach(el => { const key=el.getAttribute('data-i18n'); if(spanishDefaults[key]!==undefined) el.innerHTML=spanishDefaults[key]; });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { const key=el.getAttribute('data-i18n-placeholder'); const ph=spanishDefaults['ph_'+key]; if(ph!==undefined) el.setAttribute('placeholder', ph); });
+    }
+    function translateUI(lang) {
+      if(!lang) return;
+      const dict = translations[lang] || {};
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) {
+          const useInner = key.startsWith('example_') || key==='title' || key==='desc_small' || key.startsWith('manual_encrypt_') || key.startsWith('manual_decrypt_') || key==='preserve_group_label';
+          if (useInner) el.innerHTML = dict[key]; else el.textContent = dict[key];
+        }
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { const key = el.getAttribute('data-i18n-placeholder'); if (dict[key]) el.setAttribute('placeholder', dict[key]); });
+    }
+
+    let currentLang='es';
+    function setLanguage(lang) {
+      currentLang = lang || 'es';
+      if (currentLang === 'en') {
+        translateUI('en');
+        if (!textEdited && (txtEl.value.trim()==='' || txtEl.value === spanishSampleText)) txtEl.value = englishSampleText;
+        if (!keyEdited && (keyEl.value.trim()==='' || keyEl.value === spanishSampleKey)) keyEl.value = englishSampleKey;
+      } else {
+        restoreSpanishDefaultsUI();
+        if (!textEdited && (txtEl.value.trim()==='' || txtEl.value === englishSampleText)) txtEl.value = spanishSampleText;
+        if (!keyEdited && (keyEl.value.trim()==='' || keyEl.value === englishSampleKey)) keyEl.value = spanishSampleKey;
+      }
+      try { localStorage.setItem('vigenere_lang', currentLang); } catch(e){}
+      if (languageSelect) languageSelect.value = currentLang;
+      updateNormalizedDisplay(txtEl.value);
+    }
+
+    function updateNormalizedDisplay(text) {
+      const norm = normalizeForKeyAndLetters(text).replace(/[^A-Z]/g,'');
+      document.getElementById('normalized').textContent = norm || (currentLang === 'en' ? '(text without A–Z letters)' : '(texto sin letras A–Z)');
+    }
+
+    // Tabs init
+    function initTabs() {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', ()=> {
+          document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+          btn.classList.add('active');
+          const id = 'tab-' + btn.dataset.tab;
+          const content = document.getElementById(id);
+          if (content) content.classList.add('active');
+        });
+      });
+      document.querySelectorAll('.manual-tab-btn').forEach(btn => {
+        btn.addEventListener('click', ()=> {
+          document.querySelectorAll('.manual-tab-btn').forEach(b=>b.classList.remove('active'));
+          document.querySelectorAll('.manual-content').forEach(c=>c.classList.remove('active'));
+          btn.classList.add('active');
+          const id = 'manual-' + btn.dataset.manual;
+          const content = document.getElementById(id);
+          if (content) content.classList.add('active');
+        });
+      });
+    }
+
+    // Attach cipher handlers
+    document.getElementById('encryptBtn').addEventListener('click', ()=> {
+      const opts = { preserveNonLetters: preserveChk.checked, preserveCase: preserveCaseChk.checked };
+      updateNormalizedDisplay(txtEl.value);
+      const res = processVigenere(txtEl.value, keyEl.value, 'encrypt', opts);
+      if (!res.ok) { const msg = currentLang === 'en' ? translations.en[res.messageKey] || 'Error' : spanishDefaults[res.messageKey] || 'Clave vacía.'; showToast(msg,'error'); return; }
+      resultEl.textContent = res.result; showToast(currentLang === 'en' ? translations.en.toast_encrypted : 'Texto cifrado.','success');
+    });
+
+    document.getElementById('decryptBtn').addEventListener('click', ()=> {
+      const opts = { preserveNonLetters: preserveChk.checked, preserveCase: preserveCaseChk.checked };
+      updateNormalizedDisplay(txtEl.value);
+      const res = processVigenere(txtEl.value, keyEl.value, 'decrypt', opts);
+      if (!res.ok) { const msg = currentLang === 'en' ? translations.en[res.messageKey] || 'Error' : spanishDefaults[res.messageKey] || 'Clave vacía.'; showToast(msg,'error'); return; }
+      resultEl.textContent = res.result; showToast(currentLang === 'en' ? translations.en.toast_decrypted : 'Texto descifrado.','success');
+    });
+
+    // Copy handler
+    document.getElementById('copyBtn').addEventListener('click', async ()=> {
+      const txt = resultEl.textContent;
+      if (!txt) { showToast(currentLang === 'en' ? translations.en.toast_no_result : 'No hay resultado para copiar.','error'); return; }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try { await navigator.clipboard.writeText(txt); showToast(currentLang === 'en' ? translations.en.toast_copied : 'Copiado al portapapeles.','success'); return; } catch(e) {}
+      }
+      const ok = (function fallback(t){ try{ const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); return true; }catch(e){return false;} })(txt);
+      if (ok) showToast(currentLang === 'en' ? translations.en.toast_copied : 'Copiado al portapapeles.','success'); else showToast(currentLang === 'en' ? translations.en.toast_copy_failed : 'No se pudo copiar automáticamente. Por favor, selecciona y copia manualmente desde el cuadro de resultado.','error');
+    });
+
+    // Settings handlers
+    if (settingsBtn && settingsPanel) {
+      settingsBtn.addEventListener('click', ()=> {
+        languageSelect.value = currentLang;
+        settingsPanel.classList.toggle('active');
+        settingsBtn.setAttribute('aria-expanded', settingsPanel.classList.contains('active') ? 'true' : 'false');
+        if (currentLang === 'en') translateUI('en'); else restoreSpanishDefaultsUI();
+      });
+      if (closeSettings) closeSettings.addEventListener('click', ()=> { settingsPanel.classList.remove('active'); settingsBtn.setAttribute('aria-expanded','false'); });
+      if (cancelSettings) cancelSettings.addEventListener('click', ()=> { settingsPanel.classList.remove('active'); settingsBtn.setAttribute('aria-expanded','false'); if (currentLang==='en') translateUI('en'); else restoreSpanishDefaultsUI(); });
+      if (applySettings) applySettings.addEventListener('click', ()=> { const selected = languageSelect.value || 'es'; setLanguage(selected); settingsPanel.classList.remove('active'); settingsBtn.setAttribute('aria-expanded','false'); });
+    }
+
+    // Initialize
+    initTabs();
+    const firstManual = document.querySelector('.manual-tab-btn');
+    if (firstManual) { document.querySelectorAll('.manual-tab-btn').forEach(b=>b.classList.remove('active')); document.querySelectorAll('.manual-content').forEach(c=>c.classList.remove('active')); firstManual.classList.add('active'); const mc=document.getElementById('manual-'+firstManual.dataset.manual); if(mc) mc.classList.add('active'); }
+
+    try {
+      const saved = localStorage.getItem('vigenere_lang');
+      if (saved && (saved === 'en' || saved === 'es')) setLanguage(saved); else setLanguage('es');
+    } catch(e) { setLanguage('es'); }
+
+    updateNormalizedDisplay(txtEl.value);
+  }); // end DOMContentLoaded
+  </script>
+</body>
+</html>
