@@ -1,6 +1,7 @@
 {
   "name": "Vigenère-Cipher",
   "short_name": "Vigenère",
+  "description": "Cifrado y descifrado auto y manual de Vigenère",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0b5ed7",
@@ -18,3 +19,4 @@
     }
   ]
 }
+
