@@ -1,21 +1,20 @@
-const CACHE = "pwa-cache-v1";
-
+const CACHE = 'v1';
 const FILES = [
-  "./",
-  "./index.html",
-  "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png"
-  /* AGREGA AQUÍ TUS CSS, JS, IMÁGENES */
+  './',
+  './index.html',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  // Agregar TODOS tus archivos aquí
 ];
 
-self.addEventListener("install", e => {
+self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(cache => cache.addAll(FILES))
   );
 });
 
-self.addEventListener("fetch", e => {
+self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(e.request).then(res => res || fetch(e.request))
   );
