@@ -3,16 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-<!-- PWA -->
-<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0b5ed7">
-
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js");
-}
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js');
+  }
 </script>
-
   <title>Cifrado Vigenère (sin Ñ) — Versión mejorada</title>
   <style>
     body { font-family: system-ui, sans-serif; background:#f8fafc; color:#0f172a; margin:24px; position:relative; }
@@ -502,3 +501,4 @@ if ("serviceWorker" in navigator) {
 </body>
 
 </html>
+
